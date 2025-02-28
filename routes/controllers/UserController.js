@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const { User, Reception, Doctor, UsingEvent } = require("../../models/models");
+const { User, Reception, Doctor, UsingEvent, Appointment} = require("../../models/models");
 require('dotenv').config();
 
 const moment = require('moment-timezone');
@@ -215,6 +215,71 @@ exports.updateMedicationTimes = async (req, res) => {
         await user.save();
 
         res.status(200).json({ message: "Medication times updated successfully", medicationTimes: user.medicationTimes });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+exports.getUserAppointments = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const currentDate = moment().tz("Asia/Almaty").toDate(); // Преобразуем в Date
+
+        const appointments = await Appointment.find({
+            user: userId,
+            dateTime: { $gte: currentDate }
+        })
+            .populate('doctor', 'fname speciality phone')
+            .sort({ dateTime: 1 }); // Сортировка по дате (ближайшие первыми)
+
+        res.status(200).json({ appointments });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+exports.getPastAppointments = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const currentDate = moment().tz("Asia/Almaty").toDate(); // Преобразуем в Date
+
+        const pastAppointments = await Appointment.find({
+            user: userId,
+            dateTime: { $lt: currentDate } // Теперь правильно находит прошедшие
+        })
+            .populate('doctor', 'fname speciality phone')
+            .sort({ dateTime: -1 }); // Сортировка по убыванию (сначала последние посещения)
+
+        res.status(200).json({ pastAppointments });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+exports.getUserInfo = async (req, res) => {
+    try {
+        const userId = req.user.id;
+
+        const user = await User.findById(userId)
+            .populate('hospital', 'name address')
+            .populate('doctor', '-password') // Загружаем всех врачей, кроме пароля
+            .populate({
+                path: 'recipe',
+                populate: [
+                    { path: 'doctor', select: 'fname speciality phone' },
+                    { path: 'reception', select: 'drug time day startDay expStatus' }
+                ]
+            })
+            .select('fname phone iin hospital doctor recipe medicationTimes');
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.status(200).json({ user });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });

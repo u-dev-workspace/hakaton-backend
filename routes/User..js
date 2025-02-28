@@ -14,5 +14,13 @@ router.post('/user/change-password', authMiddleware, roleMiddleware(['user']), U
 router.post('/user/expired-receptions', authMiddleware,roleMiddleware(['user']), UserController.getExpiredReceptions); // Новый маршрут
 router.post('/user/updateMedicationTimes', authMiddleware,roleMiddleware(['user']), UserController.updateMedicationTimes); // Новый маршрут
 
+
+router.post('/user/getUserAppointments', authMiddleware,roleMiddleware(['user']), UserController.getUserAppointments); // Новый маршрут
+
+router.post('/user/getPastAppointments', authMiddleware,roleMiddleware(['user']), UserController.getPastAppointments); // Новый маршрут
+
+router.post('/user/getUserInfo', authMiddleware,roleMiddleware(['user']), UserController.getUserInfo); // Новый маршрут
+
+
 module.exports = router;
 

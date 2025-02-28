@@ -8,4 +8,8 @@ const roleMiddleware = require('./middlewares/role');
 const router = express.Router();
 
 router.post('/doctor/createRecipe', authMiddleware, roleMiddleware(['doctor']), DoctorController.createRecipe);
+
+router.post('/doctor/getUpcomingAppointments', authMiddleware, roleMiddleware(['doctor']), DoctorController.getUpcomingAppointments);
+
+
 module.exports = router;

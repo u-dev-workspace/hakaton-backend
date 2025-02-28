@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const { Doctor, Recipe, Reception, User } = require("../../models/models");
+const { Doctor, Recipe, Reception, User, Appointment} = require("../../models/models");
+const moment = require("moment-timezone");
 require('dotenv').config();
 
 exports.login = async (req, res) => {
@@ -77,3 +78,27 @@ exports.createRecipe = async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     }
 };
+
+exports.getUpcomingAppointments = async (req, res) => {
+    try {
+        const { doctorId } = req.params;
+        const currentDate = moment().tz("Asia/Almaty").toDate(); // Преобразуем в Date
+
+        const appointments = await Appointment.find({
+            doctor: doctorId,
+            dateTime: { $gte: currentDate } // Сравниваем корректно
+        })
+            .populate('user', 'fname phone')
+            .sort({ dateTime: 1 }); // Сортировка по дате (ближайшие первыми)
+
+        res.status(200).json({ appointments });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+
+
+// 2️⃣ Получение всех записей пациента с данными о врачах, отсортированных по дате
+

@@ -13,4 +13,5 @@ router.get('/search/specialities/:query',authMiddleware, SearchController.search
 router.get('/search/drug/:query', SearchController.searchDrug);
 router.post('/drug/add', SearchController.addDrugIfNotExists);
 
+
 module.exports = router;
