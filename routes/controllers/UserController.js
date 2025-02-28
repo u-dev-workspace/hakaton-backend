@@ -227,8 +227,7 @@ exports.getUserAppointments = async (req, res) => {
         const currentDate = moment().tz("Asia/Almaty").toDate(); // Преобразуем в Date
 
         const appointments = await Appointment.find({
-            user: userId,
-            dateTime: { $gte: currentDate }
+            user: userId
         })
             .populate('doctor', 'fname speciality phone')
             .sort({ dateTime: 1 }); // Сортировка по дате (ближайшие первыми)

@@ -81,12 +81,11 @@ exports.createRecipe = async (req, res) => {
 
 exports.getUpcomingAppointments = async (req, res) => {
     try {
-        const { doctorId } = req.params;
+        const doctorId = req.user.id;
         const currentDate = moment().tz("Asia/Almaty").toDate(); // Преобразуем в Date
 
         const appointments = await Appointment.find({
-            doctor: doctorId,
-            dateTime: { $gte: currentDate } // Сравниваем корректно
+            doctor: doctorId
         })
             .populate('user', 'fname phone')
             .sort({ dateTime: 1 }); // Сортировка по дате (ближайшие первыми)
