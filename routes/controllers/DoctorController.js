@@ -24,7 +24,7 @@ exports.login = async (req, res) => {
 
 exports.createRecipe = async (req, res) => {
     try {
-        const { user, receptions, disease } = req.body;
+        const { user, receptions, disease, diseaseDescription, tryComment} = req.body;
         const doctorId = req.user.id; // ID врача из JWT
 
         // Проверяем, существует ли пользователь
@@ -47,7 +47,9 @@ exports.createRecipe = async (req, res) => {
             doctor: doctorId,
             user: existingUser._id,
             reception: createdReceptions.map(rec => rec._id),
-            disease
+            disease,
+            diseaseDescription,
+            tryComment
         });
 
         await recipe.save();

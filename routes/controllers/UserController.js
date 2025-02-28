@@ -76,7 +76,9 @@ exports.getUserRecipes = async (req, res) => {
             path: 'recipe',
             populate: [
                 { path: 'doctor', select: 'fname phone speciality' },
-                { path: 'reception', select: 'drug time startDay recStatus' }
+                { path: 'reception', select: 'drug time startDay recStatus' },
+                { path: 'diseaseDescription'},
+                { path: 'tryComment'}
             ]
         });
 
@@ -91,6 +93,8 @@ exports.getUserRecipes = async (req, res) => {
                 speciality: recipe.doctor.speciality
             },
             disease: recipe.disease,
+            diseaseDescription: recipe.diseaseDescription,
+            tryComment: recipe.tryComment,
             receptions: recipe.reception.map(reception => ({
                 drug: reception.drug,
                 time: reception.time,
@@ -191,3 +195,28 @@ exports.getExpiredReceptions = async (req, res) => {
     }
 };
 
+exports.updateMedicationTimes = async (req, res) => {
+    try {
+        const userId = req.user.id; // Получаем ID пользователя из JWT
+        const { morning, afternoon, evening } = req.body;
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Обновляем время приема лекарств
+        user.medicationTimes = {
+            morning: morning || user.medicationTimes.morning,
+            afternoon: afternoon || user.medicationTimes.afternoon,
+            evening: evening || user.medicationTimes.evening
+        };
+
+        await user.save();
+
+        res.status(200).json({ message: "Medication times updated successfully", medicationTimes: user.medicationTimes });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};

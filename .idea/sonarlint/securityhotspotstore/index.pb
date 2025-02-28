@@ -13,8 +13,6 @@ shema.json,9\e\9e054371b51352347f9c1cc31a79d85674a64643
 @
 models/models.js,8\5\8582306aede81eb9d96c7af8e867c7bfd2c75994
 ?
-routes/Admin.js,0\e\0ea65fbb4f54280976d83c0ee245789fdde26bf6
-?
 routes/User..js,f\c\fc64997acfe0c82e20d51d3723d91b927507e0b0
 @
 routes/Doctor.js,4\0\40167185b5d765b6e11cbe8318dc28afbef64cba
@@ -33,3 +31,13 @@ J
 :
 
 .gitignore,a\5\a5cc2925ca8258af241be7e5b0381edf30266302
+D
+routes/Supervisor.js,f\e\fee2ee4f3700d68b5632f588160c9eb3a989f881
+A
+routes/General.js,e\8\e8b83f828fb197648d3bebddbcba4a430287f7fe
+W
+'routes/controllers/GeneralController.js,f\2\f272552773d989d3f4dae00d896d0d807144e35b
+@
+routes/Search.js,a\8\a80aec57497375fc72550f5997266cdcd382b3bb
+V
+&routes/controllers/SearchController.js,3\1\31ac4c8702d440a7d404caa94968664be627a2d1

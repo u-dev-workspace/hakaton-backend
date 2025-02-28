@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const { Doctor, Supervisor, User } = require("../../models/models");
+const { Doctor, Supervisor, User, Appointment, Hospital} = require("../../models/models");
+const moment = require("moment-timezone");
 require('dotenv').config();
 
 
@@ -49,4 +50,99 @@ exports.createSupervisor = async (req, res) => {
     const supervisor = new Supervisor({ name, password: hashedPassword });
     await supervisor.save();
     res.status(201).json({ message: 'Supervisor created' });
+};
+
+exports.createHospital = async (req, res) => {
+    const { name, address, gisLink } = req.body;
+
+    const hospital = new Hospital({ name, address, gisLink });
+    await hospital.save();
+    res.status(201).json({ message: 'hospital created' });
+};
+
+exports.assignDoctorToHospital = async (req, res) => {
+    try {
+        const { doctorId, hospitalId } = req.body;
+
+        const hospital = await Hospital.findById(hospitalId);
+        if (!hospital) {
+            return res.status(404).json({ message: "Hospital not found" });
+        }
+
+        const doctor = await Doctor.findById(doctorId);
+        if (!doctor) {
+            return res.status(404).json({ message: "Doctor not found" });
+        }
+
+        doctor.hospital = hospitalId;
+        hospital.doctors.push(doctorId);
+
+        await doctor.save();
+        await hospital.save();
+
+        res.status(200).json({ message: "Doctor assigned to hospital successfully" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+// 2️⃣ Прикрепление пациента к больнице
+exports.assignUserToHospital = async (req, res) => {
+    try {
+        const { userId, hospitalId } = req.body;
+
+        const hospital = await Hospital.findById(hospitalId);
+        if (!hospital) {
+            return res.status(404).json({ message: "Hospital not found" });
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        user.hospital = hospitalId;
+        hospital.patients.push(userId);
+
+        await user.save();
+        await hospital.save();
+
+        res.status(200).json({ message: "User assigned to hospital successfully" });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+exports.createAppointment = async (req, res) => {
+    try {
+        const { doctorId, userId, dateTime } = req.body;
+
+        const doctor = await Doctor.findById(doctorId);
+        if (!doctor) {
+            return res.status(404).json({ message: "Doctor not found" });
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // Форматируем дату в нужный формат
+        const formattedDateTime = moment(dateTime, "YYYY-MM-DD HH:mm").tz("Asia/Almaty").format("DD MMMM HH:mm");
+
+        const appointment = new Appointment({
+            doctor: doctorId,
+            user: userId,
+            dateTime: formattedDateTime
+        });
+
+        await appointment.save();
+
+        res.status(201).json({ message: "Appointment created successfully", appointment });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+    }
 };

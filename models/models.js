@@ -9,7 +9,13 @@ const UserSchema = new mongoose.Schema({
     iin: { type: String, unique: true, required: true },
     phone: { type: String, unique: true, required: true },
     recipe: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Recipe' }],
-    doctor: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Doctor' }]
+    doctor: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Doctor' }],
+    hospital: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Hospital' }],
+    medicationTimes: {
+        morning: { type: String, required: false, default:"8am" },
+        afternoon: { type: String, required: false,default:"1pm" },
+        evening: { type: String, required: false, default:"8pm" }
+    }
 });
 
 // Doctor Model
@@ -36,7 +42,8 @@ const DoctorSchema = new mongoose.Schema({
         required: true
     },
     recipe: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Recipe' }],
-    users: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
+    users: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    hospital: { type: mongoose.Schema.Types.ObjectId, ref: 'Hospital' }
 });
 
 // Reception Model
@@ -59,7 +66,9 @@ const RecipeSchema = new mongoose.Schema({
     doctor: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor', required: true },
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     reception: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Reception' }],
-    disease: { type: String, required: true }
+    disease: { type: String, required: true },
+    diseaseDescription:{type: String, required: false, default:""},
+    tryComment:{type: String, required: false, default:""}
 });
 
 
@@ -116,6 +125,25 @@ const UsingEventSchema = new mongoose.Schema({
     }
 });
 
+const HospitalSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    address: { type: String, required: true },
+    regNumber: { type: String, required: false, default: "" },
+    patients: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    doctors: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Doctor' }],
+    gisLink: { type: String, required:  false, default:"" },
+});
+
+const AppointmentSchema = new mongoose.Schema({
+    doctor: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor', required: true },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    dateTime: {
+        type: String,
+        required: true,
+        default: () => moment().tz("Asia/Almaty").format("DD MMMM HH:mm") // Формат 28 февраля 15:20
+    }
+});
+
 module.exports = {
     User: mongoose.model('User', UserSchema),
     Doctor: mongoose.model('Doctor', DoctorSchema),
@@ -123,7 +151,8 @@ module.exports = {
     Recipe: mongoose.model('Recipe', RecipeSchema),
     Supervisor: mongoose.model('Supervisor', SupervisorSchema),
     Drug: mongoose.model('Drug', DrugSchema),
-    UsingEvent: mongoose.model('UsingEvent', UsingEventSchema)
+    UsingEvent: mongoose.model('UsingEvent', UsingEventSchema),
+    Hospital: mongoose.model('Hospital', HospitalSchema),
+    Appointment: mongoose.model('Appointment', AppointmentSchema),
 };
-
 
