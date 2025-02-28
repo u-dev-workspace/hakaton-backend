@@ -15,8 +15,8 @@ router.post('/auth/login/doctor', DoctorController.login);
 router.post('/auth/login/supervisor', SupervisorController.login);
 
 // Supervisor Registering Users
-router.post('/auth/register/user', roleMiddleware(['supervisor']), SupervisorController.createUser);
-router.post('/auth/register/doctor', roleMiddleware(['supervisor']), SupervisorController.createDoctor);
+router.post('/auth/register/user', SupervisorController.createUser);
+router.post('/auth/register/doctor', SupervisorController.createDoctor);
 router.post('/auth/register/supervisor', SupervisorController.createSupervisor);
 
 module.exports = router;
