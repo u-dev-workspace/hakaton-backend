@@ -41,3 +41,9 @@ W
 routes/Search.js,a\8\a80aec57497375fc72550f5997266cdcd382b3bb
 V
 &routes/controllers/SearchController.js,3\1\31ac4c8702d440a7d404caa94968664be627a2d1
+A
+package-lock.json,f\a\fa288d1472d29beccb489a676f68739ad365fc47
+<
+src/index.js,f\9\f900edc44cb929c2267a16100a32851f6d5b477d
+A
+webpack.config.js,d\5\d5595158cc48f9bf3e51b06f6e6805a8fd2d6262
