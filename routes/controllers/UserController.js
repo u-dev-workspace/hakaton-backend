@@ -332,7 +332,9 @@ exports.getUsingEventsByMonth = async (req, res) => {
         const { userId } = req.params; // ID пользователя
 
         // Проверяем, есть ли у пользователя приемы лекарств
-        const usingEvents = await UsingEvent.find({ user: userId }).sort({ dateTime: 1 });
+        const usingEvents = await UsingEvent.find({ user: userId })
+            .populate("user doctor reception") // Заполняем связанные объекты
+            .sort({ dateTime: 1 });
 
         if (!usingEvents.length) {
             return res.status(404).json({ message: "No using events found for this user." });
@@ -383,7 +385,9 @@ exports.getUsingEventsForToday = async (req, res) => {
         const usingEvents = await UsingEvent.find({
             user: userId,
             dateTime: { $regex: `^${today}` } // Фильтр по дате (гггг-мм-дд)
-        }).sort({ dateTime: 1 });
+        })
+            .populate("user doctor reception") // Заполняем связанные объекты
+            .sort({ dateTime: 1 });
 
         if (!usingEvents.length) {
             return res.status(404).json({ message: "No using events found for today." });
@@ -395,3 +399,4 @@ exports.getUsingEventsForToday = async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     }
 };
+
