@@ -204,8 +204,6 @@ exports.updateMedicationTimes = async (req, res) => {
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
-
-        // Обновляем время приема лекарств
         user.medicationTimes = {
             morning: morning || user.medicationTimes.morning,
             afternoon: afternoon || user.medicationTimes.afternoon,
@@ -290,8 +288,9 @@ exports.updateUsingEvent = async (req, res) => {
         const { action } = req.body; // "complete" или "delay"
         const { eventId } = req.params; // ID записи приема
 
-        console.log(eventId)
-        console.log(action)
+        console.log("Event ID:", eventId);
+        console.log("Action:", action);
+
         // Проверяем, существует ли прием
         const usingEvent = await UsingEvent.findById(eventId);
         if (!usingEvent) {
@@ -304,15 +303,18 @@ exports.updateUsingEvent = async (req, res) => {
         }
 
         if (action === "complete") {
-            // Отмечаем прием как завершенный
             usingEvent.isCompleted = true;
         } else if (action === "delay") {
-            // Увеличиваем пропуск
             usingEvent.missedCount += 1;
 
-            // Если пропусков 3, то прием считается просроченным
             if (usingEvent.missedCount >= 3) {
                 usingEvent.isExpired = true;
+            } else {
+                // Обновляем `dateTime`, добавляя 1 час
+                usingEvent.dateTime = moment(usingEvent.dateTime)
+                    .tz("Asia/Almaty") // Учитываем временную зону
+                    .add(1, "hour")
+                    .format("YYYY-MM-DD HH:mm");
             }
         } else {
             return res.status(400).json({ message: "Invalid action. Use 'complete' or 'delay'." });
@@ -322,7 +324,7 @@ exports.updateUsingEvent = async (req, res) => {
 
         res.status(200).json({ message: "UsingEvent updated successfully", usingEvent });
     } catch (error) {
-        console.error(error);
+        console.error("Error in updateUsingEvent:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 };
@@ -331,7 +333,7 @@ exports.getUsingEventsByMonth = async (req, res) => {
     try {
         const { userId } = req.params; // ID пользователя
 
-        // Проверяем, есть ли у пользователя приемы лекарств
+
         const usingEvents = await UsingEvent.find({ user: userId })
             .populate("user doctor reception") // Заполняем связанные объекты
             .sort({ dateTime: 1 });
@@ -340,7 +342,7 @@ exports.getUsingEventsByMonth = async (req, res) => {
             return res.status(404).json({ message: "No using events found for this user." });
         }
 
-        // Группировка по месяцам
+
         const groupedEvents = usingEvents.reduce((acc, event) => {
             const month = moment(event.dateTime).format("YYYY-MM"); // Пример: "2025-03"
 
@@ -353,7 +355,6 @@ exports.getUsingEventsByMonth = async (req, res) => {
                 };
             }
 
-            // Увеличиваем счетчики в зависимости от статуса
             if (event.isCompleted) {
                 acc[month].completed += 1;
             } else if (event.isExpired) {
@@ -362,7 +363,6 @@ exports.getUsingEventsByMonth = async (req, res) => {
                 acc[month].missed += event.missedCount;
             }
 
-            // Добавляем событие в список
             acc[month].events.push(event);
 
             return acc;
@@ -378,10 +378,9 @@ exports.getUsingEventsByMonth = async (req, res) => {
 
 exports.getUsingEventsForToday = async (req, res) => {
     try {
-        const { userId } = req.params; // ID пользователя
+        const userId = req.user.id;
         const today = moment().tz("Asia/Almaty").format("YYYY-MM-DD");
 
-        // Фильтруем только события на сегодня
         const usingEvents = await UsingEvent.find({
             user: userId,
             dateTime: { $regex: `^${today}` } // Фильтр по дате (гггг-мм-дд)
