@@ -44,3 +44,73 @@ exports.updateDoctorAppointments = async () => {
         console.error("Error updating doctor appointments:", error);
     }
 };
+
+exports.getAllDoctors = async (req, res) => {
+    try {
+        const doctors = await Doctor.find()
+            .populate("users") // Получаем пациентов врача
+            .populate("hospital") // Получаем данные о больнице
+            .populate("recipe"); // Получаем рецепты, назначенные врачом
+
+        if (!doctors.length) {
+            return res.status(404).json({ message: "No doctors found." });
+        }
+
+        res.status(200).json(doctors);
+    } catch (error) {
+        console.error("Error fetching doctors:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+exports.getAllUsers = async (req, res) => {
+    try {
+        const users = await User.find()
+            .populate("recipe") // Получаем рецепты пользователя
+            .populate("doctor") // Получаем лечащих врачей
+            .populate("hospital"); // Получаем больницы, в которых лечится пациент
+
+        if (!users.length) {
+            return res.status(404).json({ message: "No users found." });
+        }
+
+        res.status(200).json(users);
+    } catch (error) {
+        console.error("Error fetching users:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+exports.getAllHospitals = async (req, res) => {
+    try {
+        const hospitals = await Hospital.find()
+            .populate("patients") // Получаем всех пациентов
+            .populate("doctors"); // Получаем всех врачей
+
+        if (!hospitals.length) {
+            return res.status(404).json({ message: "No hospitals found." });
+        }
+
+        res.status(200).json(hospitals);
+    } catch (error) {
+        console.error("Error fetching hospitals:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+exports.getAllAppointments = async (req, res) => {
+    try {
+        const appointments = await Appointment.find()
+            .populate("doctor") // Подтягиваем данные врача
+            .populate("user"); // Подтягиваем данные пациента
+
+        if (!appointments.length) {
+            return res.status(404).json({ message: "No appointments found." });
+        }
+
+        res.status(200).json(appointments);
+    } catch (error) {
+        console.error("Error fetching appointments:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
