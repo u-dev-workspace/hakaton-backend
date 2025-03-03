@@ -48,19 +48,45 @@ const DoctorSchema = new mongoose.Schema({
 
 // Reception Model
 const ReceptionSchema = new mongoose.Schema({
-    drug: { type: String, required: true },
-    time: { type: String, required: true },
-    day: { type: Number, required: true },
+    drug: { type: String, required: true }, // Название лекарства
+    day: { type: Number, required: true }, // Количество дней приема
+    timesPerDay: { type: Number, required: true, min: 1 }, // Количество раз в день
     startDay: {
-        type: String, // Храним как строку для форматирования
-        required: false,
-        default: () => {
-            return moment().tz("Asia/Almaty").add(1, 'day').format("YYYY-MM-DD"); // Формат Год-Месяц-День
-        }
+        type: String,
+        required: true,
+        default: () => moment().tz("Asia/Almaty").format("YYYY-MM-DD")
     },
-    expStatus: { type: Boolean, default: false, required: false }
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    doctor: { type: mongoose.Schema.Types.ObjectId, ref: "Doctor", required: true }
 });
 
+
+// UsingEvent Schema (обновленный)
+const UsingEventSchema = new mongoose.Schema({
+    reception: { type: mongoose.Schema.Types.ObjectId, ref: "Reception", required: true },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    doctor: { type: mongoose.Schema.Types.ObjectId, ref: "Doctor", required: true },
+    dateTime: { type: String, required: true }, // Дата и время приема
+    timeOfDay: {
+        type: String,
+        enum: ["morning", "afternoon", "evening"], // Новое поле
+        required: true
+    },
+    missedCount: { type: Number, default: 0, min: 0, max: 3 }, // Пропуски от 0 до 3
+    isCompleted: { type: Boolean, default: false }, // Выполнен ли прием
+    isExpired: {
+        type: Boolean,
+        default: false
+    }
+});
+
+// Автообновление статуса, если пропусков 3
+UsingEventSchema.pre("save", function(next) {
+    if (this.missedCount >= 3) {
+        this.isExpired = true;
+    }
+    next();
+});
 // Recipe Model
 const RecipeSchema = new mongoose.Schema({
     doctor: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor', required: true },
@@ -70,6 +96,8 @@ const RecipeSchema = new mongoose.Schema({
     diseaseDescription:{type: String, required: false, default:""},
     tryComment:{type: String, required: false, default:""}
 });
+
+
 
 
 // Supervisor Model
@@ -114,16 +142,7 @@ const DrugSchema = new mongoose.Schema({
     }
 });
 
-const UsingEventSchema = new mongoose.Schema({
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    doctor: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor', required: true },
-    reception: { type: mongoose.Schema.Types.ObjectId, ref: 'Reception', required: true },
-    date: {
-        type: String,
-        required: true,
-        default: () => moment().tz("Asia/Almaty").format("YYYY-MM-DD HH:mm") // Формат YYYY-MM-DD HH:MM
-    }
-});
+
 
 const HospitalSchema = new mongoose.Schema({
     name: { type: String, required: true },

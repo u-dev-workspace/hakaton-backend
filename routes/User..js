@@ -20,7 +20,9 @@ router.post('/user/getUserAppointments', authMiddleware,roleMiddleware(['user'])
 router.post('/user/getPastAppointments', authMiddleware,roleMiddleware(['user']), UserController.getPastAppointments); // Новый маршрут
 
 router.post('/user/getUserInfo', authMiddleware,roleMiddleware(['user']), UserController.getUserInfo); // Новый маршрут
-
+router.post('/user/updateUsingEvent/:eventId', authMiddleware,roleMiddleware(['user']), UserController.updateUsingEvent );
+router.post('/user/getUsingEventsByMonth/:userId', authMiddleware, UserController.getUsingEventsByMonth );
+router.post('/user/getUsingEventsForToday/:userId', authMiddleware, UserController.getUsingEventsForToday );
 
 module.exports = router;
 

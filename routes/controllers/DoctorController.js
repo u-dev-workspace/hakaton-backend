@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const { Doctor, Recipe, Reception, User, Appointment} = require("../../models/models");
+const { Doctor, Recipe, Reception, User, Appointment, UsingEvent} = require("../../models/models");
 const moment = require("moment-timezone");
 require('dotenv').config();
 
@@ -25,29 +25,85 @@ exports.login = async (req, res) => {
 
 exports.createRecipe = async (req, res) => {
     try {
-        const { user, receptions, disease, diseaseDescription, tryComment} = req.body;
-        const doctorId = req.user.id; // ID врача из JWT
+        const { user, receptions, disease, diseaseDescription, tryComment } = req.body;
+        const doctorId = req.user.id;
 
-        // Проверяем, существует ли пользователь
         const existingUser = await User.findById(user);
         if (!existingUser) {
             return res.status(404).json({ message: "User not found" });
         }
 
-        // Проверяем, существует ли врач
         const existingDoctor = await Doctor.findById(doctorId);
         if (!existingDoctor) {
             return res.status(404).json({ message: "Doctor not found" });
         }
 
-        // Создаём записи в коллекции Reception
-        const createdReceptions = await Reception.insertMany(receptions);
+        // Получаем расписание приемов у пользователя
+        const timeMapping = {
+            morning: existingUser.medicationTimes.morning,
+            afternoon: existingUser.medicationTimes.afternoon,
+            evening: existingUser.medicationTimes.evening
+        };
 
-        // Создаём рецепт
+        let createdReceptions = [];
+        let createdUsingEvents = [];
+
+        for (const receptionData of receptions) {
+            const { drug, day, timesPerDay } = receptionData;
+
+            if (timesPerDay < 1 || timesPerDay > 3) {
+                return res.status(400).json({ message: "Invalid timesPerDay value. Must be between 1 and 3." });
+            }
+
+            const newReception = new Reception({
+                drug,
+                day,
+                timesPerDay,
+                user: existingUser._id,
+                doctor: existingDoctor._id,
+                startDay: moment().tz("Asia/Almaty").format("YYYY-MM-DD")
+            });
+
+            await newReception.save();
+            createdReceptions.push(newReception._id);
+
+            // Выбираем нужное количество временных слотов
+            const selectedTimes = Object.keys(timeMapping).slice(0, timesPerDay);
+
+            for (let i = 0; i < day; i++) {
+                for (const period of selectedTimes) {
+                    const time = timeMapping[period];
+
+                    let eventDateTime = moment()
+                        .tz("Asia/Almaty")
+                        .add(i, "days")
+                        .set({
+                            hour: parseInt(time.split(":")[0]),
+                            minute: parseInt(time.split(":")[1]) || 0
+                        })
+                        .format("YYYY-MM-DD HH:mm");
+
+                    const newUsingEvent = new UsingEvent({
+                        reception: newReception._id,
+                        user: existingUser._id,
+                        doctor: existingDoctor._id,
+                        dateTime: eventDateTime,
+                        timeOfDay: period, // Добавляем новый параметр
+                        missedCount: 0,
+                        isCompleted: false,
+                        isExpired: false
+                    });
+
+                    await newUsingEvent.save();
+                    createdUsingEvents.push(newUsingEvent._id);
+                }
+            }
+        }
+
         const recipe = new Recipe({
             doctor: doctorId,
             user: existingUser._id,
-            reception: createdReceptions.map(rec => rec._id),
+            reception: createdReceptions,
             disease,
             diseaseDescription,
             tryComment
@@ -55,16 +111,13 @@ exports.createRecipe = async (req, res) => {
 
         await recipe.save();
 
-        // Добавляем рецепт пользователю и врачу
         existingUser.recipe.push(recipe._id);
         existingDoctor.recipe.push(recipe._id);
 
-        // Добавляем врача в список врачей пациента
         if (!existingUser.doctor.includes(doctorId)) {
             existingUser.doctor.push(doctorId);
         }
 
-        // Добавляем пользователя в список пациентов врача, если его там нет
         if (!existingDoctor.users.includes(existingUser._id)) {
             existingDoctor.users.push(existingUser._id);
         }
@@ -72,12 +125,20 @@ exports.createRecipe = async (req, res) => {
         await existingUser.save();
         await existingDoctor.save();
 
-        res.status(201).json({ message: "Recipe created successfully", recipe });
+        res.status(201).json({
+            message: "Recipe created successfully",
+            recipe,
+            createdReceptions,
+            createdUsingEvents
+        });
+
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
     }
 };
+
+
 
 exports.getUpcomingAppointments = async (req, res) => {
     try {

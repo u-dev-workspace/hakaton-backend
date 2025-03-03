@@ -284,3 +284,114 @@ exports.getUserInfo = async (req, res) => {
         res.status(500).json({ message: "Internal server error" });
     }
 };
+
+exports.updateUsingEvent = async (req, res) => {
+    try {
+        const { action } = req.body; // "complete" или "delay"
+        const { eventId } = req.params; // ID записи приема
+
+        console.log(eventId)
+        console.log(action)
+        // Проверяем, существует ли прием
+        const usingEvent = await UsingEvent.findById(eventId);
+        if (!usingEvent) {
+            return res.status(404).json({ message: "UsingEvent not found" });
+        }
+
+        // Если прием уже завершен или просрочен, его нельзя менять
+        if (usingEvent.isCompleted || usingEvent.isExpired) {
+            return res.status(400).json({ message: "This event is already completed or expired." });
+        }
+
+        if (action === "complete") {
+            // Отмечаем прием как завершенный
+            usingEvent.isCompleted = true;
+        } else if (action === "delay") {
+            // Увеличиваем пропуск
+            usingEvent.missedCount += 1;
+
+            // Если пропусков 3, то прием считается просроченным
+            if (usingEvent.missedCount >= 3) {
+                usingEvent.isExpired = true;
+            }
+        } else {
+            return res.status(400).json({ message: "Invalid action. Use 'complete' or 'delay'." });
+        }
+
+        await usingEvent.save();
+
+        res.status(200).json({ message: "UsingEvent updated successfully", usingEvent });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+exports.getUsingEventsByMonth = async (req, res) => {
+    try {
+        const { userId } = req.params; // ID пользователя
+
+        // Проверяем, есть ли у пользователя приемы лекарств
+        const usingEvents = await UsingEvent.find({ user: userId }).sort({ dateTime: 1 });
+
+        if (!usingEvents.length) {
+            return res.status(404).json({ message: "No using events found for this user." });
+        }
+
+        // Группировка по месяцам
+        const groupedEvents = usingEvents.reduce((acc, event) => {
+            const month = moment(event.dateTime).format("YYYY-MM"); // Пример: "2025-03"
+
+            if (!acc[month]) {
+                acc[month] = {
+                    completed: 0,
+                    missed: 0,
+                    expired: 0,
+                    events: []
+                };
+            }
+
+            // Увеличиваем счетчики в зависимости от статуса
+            if (event.isCompleted) {
+                acc[month].completed += 1;
+            } else if (event.isExpired) {
+                acc[month].expired += 1;
+            } else {
+                acc[month].missed += event.missedCount;
+            }
+
+            // Добавляем событие в список
+            acc[month].events.push(event);
+
+            return acc;
+        }, {});
+
+        res.status(200).json({ userId, groupedEvents });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+exports.getUsingEventsForToday = async (req, res) => {
+    try {
+        const { userId } = req.params; // ID пользователя
+        const today = moment().tz("Asia/Almaty").format("YYYY-MM-DD");
+
+        // Фильтруем только события на сегодня
+        const usingEvents = await UsingEvent.find({
+            user: userId,
+            dateTime: { $regex: `^${today}` } // Фильтр по дате (гггг-мм-дд)
+        }).sort({ dateTime: 1 });
+
+        if (!usingEvents.length) {
+            return res.status(404).json({ message: "No using events found for today." });
+        }
+
+        res.status(200).json({ userId, today, usingEvents });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
