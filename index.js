@@ -25,14 +25,12 @@ mongoose.connect(process.env.MONGO_URI, {
 
 app.use(cors());
 app.use(express.json());
-app.use(
-    cors({
-        origin: ["*"], // Разрешенные источники
-        methods: ["GET", "POST", "PUT", "DELETE"], // Разрешенные методы
-        allowedHeaders: ["Content-Type", "Authorization"], // Разрешенные заголовки
-        credentials: true, // Разрешить передачу куки
-    })
-);
+app.use(cors({
+    origin: "*", // Разрешить все источники
+    methods: ["GET", "POST", "PUT", "DELETE"], // Разрешенные методы
+    allowedHeaders: ["Content-Type", "Authorization"], // Разрешенные заголовки
+    credentials: true // Разрешить передачу куки (не работает с "*")
+}));
 app.use('/api', authRoutes, doctorRoutes, userRoutes, adminRoutes, genRoutes, searchRoutes);
 
 app.listen(PORT, () => {
