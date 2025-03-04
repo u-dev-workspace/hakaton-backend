@@ -12,15 +12,25 @@ exports.login = async (req, res) => {
     }
 
     // Создание JWT токена
-    const token = jwt.sign({ id: doctor._id, role: 'doctor' }, process.env.JWT_SECRET, { expiresIn: '3d' });
-    // Устанавливаем токен в куки (httpOnly, Secure - для HTTPS)
-    res.cookie('token', token, {
-        httpOnly: true, // Доступен только серверу (JavaScript не может читать)
-        secure: process.env.NODE_ENV === 'production', // Включаем secure в продакшене
-        sameSite: 'Strict', // Улучшает безопасность
-        maxAge: 24 * 60 * 60 * 1000 // 1 день
+    const token = jwt.sign({ id: doctor._id, role: "doctor" }, process.env.JWT_SECRET, {
+        expiresIn: "1d",
     });
-    res.json({ token });
+
+    res.cookie("token", token, {
+        httpOnly: true,
+        secure: false, // Включить только в продакшене
+        sameSite: "None", // Для работы с CORS
+        path: "/",
+    });
+
+    res.status(200).json({ message: "Успешный вход", token });
+
+};
+
+
+// Функция для преобразования времени из 12-часового формата в 24-часовой (09:00, 14:00, 21:00)
+const convertTo24HourFormat = (timeStr) => {
+    return moment(timeStr, ["hA", "ha", "hhA", "h:mA", "h:ma", "hh:mA", "hh:ma"]).format("HH:mm");
 };
 
 exports.createRecipe = async (req, res) => {
@@ -38,11 +48,11 @@ exports.createRecipe = async (req, res) => {
             return res.status(404).json({ message: "Doctor not found" });
         }
 
-        // Получаем расписание приемов у пользователя
+        // Получаем расписание приемов у пользователя и конвертируем в 24-часовой формат
         const timeMapping = {
-            morning: existingUser.medicationTimes.morning,
-            afternoon: existingUser.medicationTimes.afternoon,
-            evening: existingUser.medicationTimes.evening
+            morning: convertTo24HourFormat(existingUser.medicationTimes?.morning || "08:00"),
+            afternoon: convertTo24HourFormat(existingUser.medicationTimes?.afternoon || "13:00"),
+            evening: convertTo24HourFormat(existingUser.medicationTimes?.evening || "19:00")
         };
 
         let createdReceptions = [];
@@ -74,21 +84,30 @@ exports.createRecipe = async (req, res) => {
                 for (const period of selectedTimes) {
                     const time = timeMapping[period];
 
+                    if (!time || typeof time !== "string" || !time.includes(":")) {
+                        return res.status(400).json({ message: `Invalid time format for ${period}: ${time}` });
+                    }
+
+                    const [hour, minute] = time.split(":").map(num => parseInt(num, 10));
+                    if (isNaN(hour) || isNaN(minute)) {
+                        return res.status(400).json({ message: `Invalid time values for ${period}: ${time}` });
+                    }
+
                     let eventDateTime = moment()
                         .tz("Asia/Almaty")
                         .add(i, "days")
-                        .set({
-                            hour: parseInt(time.split(":")[0]),
-                            minute: parseInt(time.split(":")[1]) || 0
-                        })
-                        .format("YYYY-MM-DD HH:mm");
+                        .set({ hour, minute, second: 0, millisecond: 0 });
+
+                    if (!eventDateTime.isValid()) {
+                        return res.status(400).json({ message: `Generated invalid date for ${period}` });
+                    }
 
                     const newUsingEvent = new UsingEvent({
                         reception: newReception._id,
                         user: existingUser._id,
                         doctor: existingDoctor._id,
-                        dateTime: eventDateTime,
-                        timeOfDay: period, // Добавляем новый параметр
+                        dateTime: eventDateTime.toISOString(), // ISO формат для хранения
+                        timeOfDay: period,
                         missedCount: 0,
                         isCompleted: false,
                         isExpired: false
@@ -131,12 +150,13 @@ exports.createRecipe = async (req, res) => {
             createdReceptions,
             createdUsingEvents
         });
-
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
     }
 };
+
+
 
 
 

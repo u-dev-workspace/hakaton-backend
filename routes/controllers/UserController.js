@@ -18,7 +18,7 @@ exports.login = async (req, res) => {
     res.cookie('token', token, {
         httpOnly: true, // Доступен только серверу (JavaScript не может читать)
         secure: process.env.NODE_ENV === 'production', // Включаем secure в продакшене
-        sameSite: 'Strict', // Улучшает безопасность
+        sameSite: 'None', // Улучшает безопасность
         maxAge: 24 * 60 * 60 * 1000 // 1 день
     });
     res.json({ token });
@@ -283,6 +283,7 @@ exports.getUserInfo = async (req, res) => {
     }
 };
 
+
 exports.updateUsingEvent = async (req, res) => {
     try {
         const { action } = req.body; // "complete" или "delay"
@@ -310,11 +311,17 @@ exports.updateUsingEvent = async (req, res) => {
             if (usingEvent.missedCount >= 3) {
                 usingEvent.isExpired = true;
             } else {
+                // Проверяем, корректна ли дата перед изменением
+                let eventDateTime = moment(usingEvent.dateTime);
+                if (!eventDateTime.isValid()) {
+                    return res.status(400).json({ message: "Invalid event date format" });
+                }
+
                 // Обновляем `dateTime`, добавляя 1 час
-                usingEvent.dateTime = moment(usingEvent.dateTime)
-                    .tz("Asia/Almaty") // Учитываем временную зону
-                    .add(1, "hour")
-                    .format("YYYY-MM-DD HH:mm");
+                eventDateTime = eventDateTime.tz("Asia/Almaty").add(1, "hour");
+
+                // Сохраняем новую дату в формате ISO
+                usingEvent.dateTime = eventDateTime.toISOString();
             }
         } else {
             return res.status(400).json({ message: "Invalid action. Use 'complete' or 'delay'." });
@@ -329,10 +336,10 @@ exports.updateUsingEvent = async (req, res) => {
     }
 };
 
+
 exports.getUsingEventsByMonth = async (req, res) => {
     try {
         const { userId } = req.params; // ID пользователя
-
 
         const usingEvents = await UsingEvent.find({ user: userId })
             .populate("user doctor reception") // Заполняем связанные объекты
@@ -342,9 +349,9 @@ exports.getUsingEventsByMonth = async (req, res) => {
             return res.status(404).json({ message: "No using events found for this user." });
         }
 
-
         const groupedEvents = usingEvents.reduce((acc, event) => {
             const month = moment(event.dateTime).format("YYYY-MM"); // Пример: "2025-03"
+            const formattedTime = moment(event.dateTime).format("HH:mm"); // Форматирование времени
 
             if (!acc[month]) {
                 acc[month] = {
@@ -363,13 +370,12 @@ exports.getUsingEventsByMonth = async (req, res) => {
                 acc[month].missed += event.missedCount;
             }
 
-            acc[month].events.push(event);
+            acc[month].events.push({ ...event._doc, formattedTime });
 
             return acc;
         }, {});
 
         res.status(200).json({ userId, groupedEvents });
-
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
@@ -392,7 +398,12 @@ exports.getUsingEventsForToday = async (req, res) => {
             return res.status(404).json({ message: "No using events found for today." });
         }
 
-        res.status(200).json({ userId, today, usingEvents });
+        const formattedEvents = usingEvents.map(event => ({
+            ...event._doc,
+            formattedTime: moment(event.dateTime).format("HH:mm") // Форматирование времени
+        }));
+
+        res.status(200).json({ userId, today, usingEvents: formattedEvents });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });

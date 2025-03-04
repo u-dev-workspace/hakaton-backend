@@ -7,10 +7,14 @@ require('dotenv').config();
 
 exports.searchDoctor = async (req, res) => {
     try {
-        const { query } = req.params;
+        console.log("Raw query:", req.params.query);
+        const query = decodeURIComponent(req.params.query);
+        console.log("Decoded query:", query);
+
         if (!query || query.trim() === '') {
             return res.status(400).json({ message: "Search query cannot be empty" });
         }
+
         const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); // Экранирование спецсимволов
         const doctors = await Doctor.find({
             $or: [
@@ -20,12 +24,15 @@ exports.searchDoctor = async (req, res) => {
             ]
         }).limit(7);
 
+        console.log("Found doctors:", doctors);
+
         res.status(200).json({ doctors });
     } catch (error) {
-        console.error(error);
+        console.error("Search error:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 };
+
 
 // 2️⃣ Поиск пациента по номеру телефона, ИИН или имени
 exports.searchUser = async (req, res) => {
@@ -53,7 +60,7 @@ exports.searchUser = async (req, res) => {
 // 3️⃣ Поиск больницы по названию
 exports.searchHospital = async (req, res) => {
     try {
-        const { query } = req.params;
+        const query = decodeURIComponent(req.params.query);
         if (!query || query.trim() === '') {
             return res.status(400).json({ message: "Search query cannot be empty" });
         }
