@@ -19,7 +19,7 @@ exports.login = async (req, res) => {
     res.cookie("token", token, {
         httpOnly: true,
         secure: false, // Включить только в продакшене
-        sameSite: "None", // Для работы с CORS
+        sameSite: "lax", // Для работы с CORS
         path: "/",
     });
 

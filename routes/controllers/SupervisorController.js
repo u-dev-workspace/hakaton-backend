@@ -20,7 +20,7 @@ exports.login = async (req, res) => {
     res.cookie('token', token, {
         httpOnly: true, // Доступен только серверу (JavaScript не может читать)
         secure: process.env.NODE_ENV === 'production', // Включаем secure в продакшене
-        sameSite: 'None', // Улучшает безопасность
+        sameSite: 'lax', // Улучшает безопасность
         maxAge: 24 * 60 * 60 * 1000 // 1 день
     });
 
