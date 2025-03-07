@@ -24,7 +24,7 @@ app.use(cors({
     credentials: true, // 🔥 ОБЯЗАТЕЛЬНО для передачи куки
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization", "Access-Control-Allow-Credentials"],
-
+    exposedHeaders: ["Set-Cookie"]
 }));
 
 // ✅ Настроенный `express-session`

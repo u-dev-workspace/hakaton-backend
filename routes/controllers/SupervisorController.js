@@ -62,20 +62,20 @@ exports.createHospital = async (req, res) => {
 
 exports.assignDoctorToHospital = async (req, res) => {
     try {
-        const { doctorId, hospitalId } = req.body;
+        const { userId, hospitalId } = req.body;
 
         const hospital = await Hospital.findById(hospitalId);
         if (!hospital) {
             return res.status(404).json({ message: "Hospital not found" });
         }
 
-        const doctor = await Doctor.findById(doctorId);
+        const doctor = await Doctor.findById(userId);
         if (!doctor) {
             return res.status(404).json({ message: "Doctor not found" });
         }
 
         doctor.hospital = hospitalId;
-        hospital.doctors.push(doctorId);
+        hospital.doctors.push(userId);
 
         await doctor.save();
         await hospital.save();
@@ -102,7 +102,7 @@ exports.assignUserToHospital = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        user.hospital = hospitalId;
+        user.hospital.push(hospitalId);
         hospital.patients.push(userId);
 
         await user.save();

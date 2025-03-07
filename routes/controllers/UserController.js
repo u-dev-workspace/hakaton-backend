@@ -11,18 +11,17 @@ exports.login = async (req, res) => {
     if (!user || !bcrypt.compareSync(password, user.password)) {
         return res.status(401).json({ message: 'Invalid credentials' });
     }
-    console.log(user)
+
     const token = jwt.sign({ id: user._id, role: 'user' }, process.env.JWT_SECRET, { expiresIn: '1d' });
-    // Создание JWT токена
-    // Устанавливаем токен в куки (httpOnly, Secure - для HTTPS)
     res.cookie('token', token, {
         httpOnly: true, // Доступен только серверу (JavaScript не может читать)
         secure: process.env.NODE_ENV === 'production', // Включаем secure в продакшене
         sameSite: 'lax', // Улучшает безопасность
         maxAge: 24 * 60 * 60 * 1000 // 1 день
     });
-    res.json({ token });
+    res.json({ token }); // Отдаем токен в JSON, без куки
 };
+
 
 exports.createUsingEvent = async (req, res) => {
     try {
@@ -198,26 +197,42 @@ exports.getExpiredReceptions = async (req, res) => {
 exports.updateMedicationTimes = async (req, res) => {
     try {
         const userId = req.user.id; // Получаем ID пользователя из JWT
-        const { morning, afternoon, evening } = req.body;
+        let { morning, afternoon, evening } = req.body;
 
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
-        user.medicationTimes = {
-            morning: morning || user.medicationTimes.morning,
-            afternoon: afternoon || user.medicationTimes.afternoon,
-            evening: evening || user.medicationTimes.evening
+
+        // Функция для преобразования `HH:mm` в `Date`
+        const parseTime = (timeString) => {
+            if (!timeString) return null;
+            const [hours, minutes] = timeString.split(":").map(Number);
+            if (isNaN(hours) || isNaN(minutes)) return null;
+
+            const date = new Date();
+            date.setUTCHours(hours, minutes, 0, 0);
+            return date;
         };
+
+        // Обновляем только переданные значения
+        user.medicationTimes.morning = morning ? parseTime(morning) : user.medicationTimes.morning;
+        user.medicationTimes.afternoon = afternoon ? parseTime(afternoon) : user.medicationTimes.afternoon;
+        user.medicationTimes.evening = evening ? parseTime(evening) : user.medicationTimes.evening;
 
         await user.save();
 
-        res.status(200).json({ message: "Medication times updated successfully", medicationTimes: user.medicationTimes });
+        res.status(200).json({
+            message: "Medication times updated successfully",
+            medicationTimes: user.medicationTimesFormatted // Отправляем форматированное время (HH:mm)
+        });
+
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
     }
 };
+
 
 exports.getUserAppointments = async (req, res) => {
     try {

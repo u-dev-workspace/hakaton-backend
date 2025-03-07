@@ -3,20 +3,56 @@ const mongoose = require('mongoose');
 const moment = require('moment-timezone');
 
 // User Model
+
+const getTime = (hours, minutes) => {
+    const date = new Date();
+    date.setUTCHours(hours, minutes, 0, 0);
+    return date;
+};
+
 const UserSchema = new mongoose.Schema({
     fname: { type: String, required: true },
     password: { type: String, required: true },
-    iin: { type: String, unique: true, required: true },
-    phone: { type: String, unique: true, required: true },
+    iin: {
+        type: String,
+        unique: true,
+        required: true,
+        match: /^\d{12}$/
+    },
+    phone: {
+        type: String,
+        unique: true,
+        required: true,
+        match: /^\+?\d{10,15}$/
+    },
     recipe: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Recipe' }],
     doctor: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Doctor' }],
     hospital: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Hospital' }],
     medicationTimes: {
-        morning: { type: String, required: false, default:"8am" },
-        afternoon: { type: String, required: false,default:"1pm" },
-        evening: { type: String, required: false, default:"8pm" }
+        morning: { type: Date, default: () => getTime(8, 0) },
+        afternoon: { type: Date, default: () => getTime(13, 0) },
+        evening: { type: Date, default: () => getTime(20, 0) }
     }
+}, { timestamps: true });
+
+// Виртуальные поля для отображения только времени
+UserSchema.virtual('medicationTimesFormatted').get(function () {
+    const formatTime = (date) => {
+        if (!date) return null;
+        const d = new Date(date);
+        return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+    };
+
+    return {
+        morning: formatTime(this.medicationTimes.morning),
+        afternoon: formatTime(this.medicationTimes.afternoon),
+        evening: formatTime(this.medicationTimes.evening),
+    };
 });
+
+// Опции для преобразования JSON (чтобы виртуальное поле включалось в `res.json()`)
+UserSchema.set('toJSON', { virtuals: true });
+UserSchema.set('toObject', { virtuals: true });
 
 // Doctor Model
 const DoctorSchema = new mongoose.Schema({

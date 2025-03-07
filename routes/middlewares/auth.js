@@ -2,14 +2,16 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 module.exports = (req, res, next) => {
-    const token = req.cookies.token;
-    console.log(token)
-    if (!token) return res.status(401).json({ message: 'Access denied' });
-    console.log(token)
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'Access denied' });
+    }
+
     try {
-        req.user = jwt.verify(token.replace('Bearer ', ''), process.env.JWT_SECRET);
-        console.log(req.user)
-        next();
+        const token = authHeader.split(' ')[1]; // Получаем сам токен
+        req.user = jwt.verify(token, process.env.JWT_SECRET); // Расшифровываем
+        next(); // Передаем управление следующему обработчику
     } catch (error) {
         res.status(400).json({ message: 'Invalid token' });
     }

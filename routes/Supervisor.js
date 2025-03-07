@@ -11,8 +11,8 @@ router.post('/admin/addAppointment', authMiddleware, SupervisorController.create
 // router.post('/auth/register/doctor', authMiddleware, roleMiddleware(['supervisor']), SupervisorController.createDoctor);
 
 router.post('/admin/addHospital', authMiddleware, roleMiddleware(['supervisor']), SupervisorController.createHospital);
-router.post('/admin/addUserToHospital', authMiddleware, roleMiddleware(['supervisor']), SupervisorController.assignUserToHospital);
+router.post('/admin/addUserToHospital', SupervisorController.assignUserToHospital);
 
-router.post('/admin/addDoctorToHospital', authMiddleware, roleMiddleware(['supervisor']), SupervisorController.assignDoctorToHospital);
+router.post('/admin/addDoctorToHospital', SupervisorController.assignDoctorToHospital);
 
 module.exports = router;

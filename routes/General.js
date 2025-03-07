@@ -11,9 +11,9 @@ router.post('/general/doctor/:doctorId/:year/:month', authMiddleware, GeneralCon
 
 router.post('/general/updateDoctorAppointments', authMiddleware, GeneralController.updateDoctorAppointments);
 
-router.get('/general/getAllDoctors', authMiddleware, GeneralController.getAllDoctors);
-router.get('/general/getAllUsers', authMiddleware, GeneralController.getAllUsers);
-router.get('/general/getAllHospitals', authMiddleware, GeneralController.getAllHospitals);
-router.get('/general/getAllAppointments', authMiddleware, GeneralController.getAllAppointments);
+router.get('/general/getAllDoctors', GeneralController.getAllDoctors);
+router.get('/general/getAllUsers', GeneralController.getAllUsers);
+router.get('/general/getAllHospitals', GeneralController.getAllHospitals);
+router.get('/general/getAllAppointments', GeneralController.getAllAppointments);
 
 module.exports = router;
