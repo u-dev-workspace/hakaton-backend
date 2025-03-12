@@ -20,7 +20,7 @@ app.use(express.urlencoded({ extended: true })); // Позволяет рабо�
 
 // ✅ Настроенный CORS (ВАЖНО ДО session и routes)
 app.use(cors({
-    origin: "http://localhost:3001", // 🔥 Должен быть точный URL фронта
+    origin: "*", // 🔥 Должен быть точный URL фронта
     credentials: true, // 🔥 ОБЯЗАТЕЛЬНО для передачи куки
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization", "Access-Control-Allow-Credentials"],
