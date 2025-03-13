@@ -436,9 +436,9 @@ const calculateScore = async (userId) => {
     if (totalEvents === 0) return 0; // Если нет приемов, рейтинг 0
 
     // Формула для оценки (чем меньше пропусков, тем выше рейтинг)
-    let score = 10 - (missedEvents / totalEvents) * 10;
-    // score += (activeRecipes * 1) - (completedRecipes * 5);
-    return score; // Ограничиваем 0-10
+    let score = 10 - (missedEvents / totalEvents * activeRecipes);
+
+    return score.toFixed(2); // Ограничиваем 0-10
 };
 
 exports.getUserAnalitics = async (req, res) => {
