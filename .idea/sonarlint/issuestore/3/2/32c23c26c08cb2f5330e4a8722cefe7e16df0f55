@@ -1,4 +1,4 @@
 
-|javascript:S3776$"TRefactor this function to reduce its Cognitive Complexity from 31 to the 15 allowed.(¾ÌÃÂýÿÿÿÿ8¨§Œ­Ö2
-ejavascript:S1481¦"<Remove the declaration of the unused 'currentDate' variable.(®™Ùúÿÿÿÿ8¨§Œ­Ö2
-bjavascript:S1854¦"9Remove this useless assignment to variable "currentDate".(®™Ùúÿÿÿÿ8¨§Œ­Ö2
+¢javascript:S37768"TRefactor this function to reduce its Cognitive Complexity from 31 to the 15 allowed.(¾ÌÃÂýÿÿÿÿ8ù†ÔƒÙ2J$91d71e58-9e1c-4b49-adaf-66d400553422
+‹javascript:S1481¼"<Remove the declaration of the unused 'currentDate' variable.(®™Ùúÿÿÿÿ8‹ÃÙƒÙ2J$583142c8-c463-4387-ac3d-233b9e769605
+ˆjavascript:S1854¼"9Remove this useless assignment to variable "currentDate".(®™Ùúÿÿÿÿ8‹ÃÙƒÙ2J$77bc828f-358c-42bc-a9c8-fc79beb07b08

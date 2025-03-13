@@ -106,22 +106,41 @@ exports.searchSpeciality = async (req, res) => {
     }
 };
 
+const drugList = [
+    "Ацикловир", "Амброксол", "Амоксициллин", "Атенолол", "Аторвастатин",
+    "Бисопролол", "Валсартан", "Габапентин", "Гидрохлоротиазид", "Диклофенак",
+    "Доксициклин", "Ибупрофен", "Кларитромицин", "Лизиноприл", "Лоперамид",
+    "Метформин", "Нифедипин", "Омепразол", "Парацетамол", "Рамиприл",
+    "Симвастатин", "Флуконазол", "Хлорамфеникол", "Ципрофлоксацин", "Эналаприл"
+];
 exports.searchDrug = async (req, res) => {
     try {
-        await checkAndAddDrugs()
         const { query } = req.params;
         if (!query || query.trim() === '') {
             return res.status(400).json({ message: "Search query cannot be empty" });
         }
-        const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        const drugs = await Drug.find({ name: { $regex: safeQuery, $options: 'i' } }).limit(7);
 
-        res.status(200).json({ drugs });
+        // Список доступных лекарств
+        const drugList = [
+            "Ацикловир", "Амброксол", "Амоксициллин", "Атенолол", "Аторвастатин",
+            "Бисопролол", "Валсартан", "Габапентин", "Гидрохлоротиазид", "Диклофенак",
+            "Доксициклин", "Ибупрофен", "Кларитромицин", "Лизиноприл", "Лоперамид",
+            "Метформин", "Нифедипин", "Омепразол", "Парацетамол", "Рамиприл",
+            "Симвастатин", "Флуконазол", "Хлорамфеникол", "Ципрофлоксацин", "Эналаприл"
+        ];
+
+        // Фильтруем лекарства (нечувствительно к регистру)
+        const filteredDrugs = drugList.filter(drug =>
+            drug.toLowerCase().includes(query.toLowerCase())
+        ).slice(0, 7); // Ограничиваем до 7 результатов
+
+        res.status(200).json({ drugs: filteredDrugs });
     } catch (error) {
-        console.error(error);
+        console.error("Ошибка поиска:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 };
+
 
 // 2️⃣ Добавление лекарства, если его нет в списке
 exports.addDrugIfNotExists = async (req, res) => {
@@ -153,13 +172,7 @@ exports.addDrugIfNotExists = async (req, res) => {
 function capitalizeFirstLetter(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
 }
-const drugList = [
-    "Ацикловир", "Амброксол", "Амоксициллин", "Атенолол", "Аторвастатин",
-    "Бисопролол", "Валсартан", "Габапентин", "Гидрохлоротиазид", "Диклофенак",
-    "Доксициклин", "Ибупрофен", "Кларитромицин", "Лизиноприл", "Лоперамид",
-    "Метформин", "Нифедипин", "Омепразол", "Парацетамол", "Рамиприл",
-    "Симвастатин", "Флуконазол", "Хлорамфеникол", "Ципрофлоксацин", "Эналаприл"
-];
+
 
 async function checkAndAddDrugs() {
     try {

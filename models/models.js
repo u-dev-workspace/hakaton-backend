@@ -71,7 +71,7 @@ const DoctorSchema = new mongoose.Schema({
             "Медицинская сестра хирургического отделения", "Медицинская сестра отоларингологического отделения",
             "Медицинская сестра процедурного кабинета", "Медицинская сестра неврологического отделения",
             "Медицинская сестра кожно-венерологического отделения", "Медицинская сестра диспансерного отделения",
-            "Медицинская сестра консультативногоотделения", "Медицинская сестра палатная (постовая) госпитальногоотделения",
+            "Медицинская сестра консультативного отделения", "Медицинская сестра палатная (постовая) госпитального отделения",
             "Медицинская сестра физиотерапевтического отделения", "Медицинская сестра отделения функциональной диагностики",
             "Рентгенолаборант", "Медицинский регистратор"
         ],
@@ -79,22 +79,11 @@ const DoctorSchema = new mongoose.Schema({
     },
     recipe: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Recipe' }],
     users: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-    hospital: { type: mongoose.Schema.Types.ObjectId, ref: 'Hospital' }
+    hospitals: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Hospital' }] // Изменено: теперь врач может быть в нескольких больницах
 });
 
+
 // Reception Model
-const ReceptionSchema = new mongoose.Schema({
-    drug: { type: String, required: true }, // Название лекарства
-    day: { type: Number, required: true }, // Количество дней приема
-    timesPerDay: { type: Number, required: true, min: 1 }, // Количество раз в день
-    startDay: {
-        type: String,
-        required: true,
-        default: () => moment().tz("Asia/Almaty").format("YYYY-MM-DD")
-    },
-    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-    doctor: { type: mongoose.Schema.Types.ObjectId, ref: "Doctor", required: true }
-});
 
 
 // UsingEvent Schema (обновленный)
@@ -123,7 +112,23 @@ UsingEventSchema.pre("save", function(next) {
     }
     next();
 });
-// Recipe Model
+
+const ReceptionSchema = new mongoose.Schema({
+    drug: { type: String, required: true }, // Название лекарства
+    day: { type: Number, required: true }, // Количество дней приема
+    timesPerDay: { type: Number, required: true, min: 1 }, // Количество раз в день
+    usingDescription: { type: String, required: true, default:""},
+    startDay: {
+        type: String,
+        required: true,
+        default: () => moment().tz("Asia/Almaty").format("YYYY-MM-DD")
+    },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    doctor: { type: mongoose.Schema.Types.ObjectId, ref: "Doctor", required: true }
+});
+
+
+// Recipe ModelВ=
 const RecipeSchema = new mongoose.Schema({
     doctor: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor', required: true },
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -133,14 +138,17 @@ const RecipeSchema = new mongoose.Schema({
     tryComment:{type: String, required: false, default:""}
 });
 
-
+// bg-[#0000009c]
 
 
 // Supervisor Model
 const SupervisorSchema = new mongoose.Schema({
     name: { type: String, required: true },
-    password: { type: String, required: true }
+    password: { type: String, required: true },
+    hospital: { type: mongoose.Schema.Types.ObjectId, ref: 'Hospital', required: true } // Связь с больницей
 });
+
+
 
 // Drug Model
 const DrugSchema = new mongoose.Schema({
@@ -190,13 +198,29 @@ const HospitalSchema = new mongoose.Schema({
 });
 
 const AppointmentSchema = new mongoose.Schema({
-    doctor: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor', required: true },
-    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    dateTime: {
-        type: String,
+    doctor: { type: mongoose.Schema.Types.ObjectId, ref: "Doctor", required: true },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+
+    // ✅ Два формата даты
+    dateTimeISO: {
+        type: Date, // ISO-формат, хранится как Date
         required: true,
-        default: () => moment().tz("Asia/Almaty").format("DD MMMM HH:mm") // Формат 28 февраля 15:20
+        default: () => moment().tz("Asia/Almaty").toDate() // Правильный формат для календаря
+    },
+
+    dateTimeFormatted: {
+        type: String, // Красивый формат для UI
+        required: true,
+        default: () => moment().tz("Asia/Almaty").format("DD MMMM HH:mm") // Например: "21 марта 18:08"
     }
+});
+
+// ✅ Автоматическое обновление `dateTimeFormatted`, если `dateTimeISO` изменяется
+AppointmentSchema.pre("save", function (next) {
+    if (this.isModified("dateTimeISO")) {
+        this.dateTimeFormatted = moment(this.dateTimeISO).tz("Asia/Almaty").format("DD MMMM HH:mm");
+    }
+    next();
 });
 
 module.exports = {

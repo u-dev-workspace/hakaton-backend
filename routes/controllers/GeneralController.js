@@ -49,7 +49,7 @@ exports.getAllDoctors = async (req, res) => {
     try {
         const doctors = await Doctor.find()
             .populate("users") // Получаем пациентов врача
-            .populate("hospital") // Получаем данные о больнице
+            .populate("hospitals") // Получаем данные о больнице
             .populate("recipe"); // Получаем рецепты, назначенные врачом
 
         if (!doctors.length) {
@@ -138,5 +138,65 @@ exports.checkAuth = async (req, res) => {
         res.json({ isAuthenticated: true, user });
     } catch (error) {
         res.status(401).json({ message: 'Invalid token' });
+    }
+};
+
+
+exports.getDoctorsByHospital = async (req, res) => {
+    try {
+        const { hospitalId } = req.params;
+
+        const doctors = await Doctor.find({ hospitals: hospitalId }) // Ищем врачей, у которых есть hospitalId
+            .populate("users") // Получаем пациентов врача
+            .populate("hospitals") // Получаем данные о больницах
+            .populate("recipe"); // Получаем рецепты, назначенные врачом
+
+        if (!doctors.length) {
+            return res.status(404).json({ message: "No doctors found for this hospital." });
+        }
+
+        res.status(200).json(doctors);
+    } catch (error) {
+        console.error("Error fetching doctors by hospital:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+exports.getUsersByHospital = async (req, res) => {
+    try {
+        const { hospitalId } = req.params;
+
+        const users = await User.find({ hospital: hospitalId }) // Фильтрация пациентов по больнице
+            .populate("recipe") // Получаем рецепты пациента
+            .populate("doctor") // Получаем лечащих врачей
+            .populate("hospital"); // Получаем больницу
+
+        if (!users.length) {
+            return res.status(404).json({ message: "No users found for this hospital." });
+        }
+
+        res.status(200).json(users);
+    } catch (error) {
+        console.error("Error fetching users by hospital:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+exports.getHospitalWithDetails = async (req, res) => {
+    try {
+        const { hospitalId } = req.params;
+
+        const hospital = await Hospital.findById(hospitalId)
+            .populate("patients") // Получаем всех пациентов этой больницы
+            .populate("doctors"); // Получаем всех врачей этой больницы
+
+        if (!hospital) {
+            return res.status(404).json({ message: "Hospital not found." });
+        }
+
+        res.status(200).json(hospital);
+    } catch (error) {
+        console.error("Error fetching hospital details:", error);
+        res.status(500).json({ message: "Internal server error" });
     }
 };

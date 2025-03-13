@@ -27,6 +27,22 @@ exports.login = async (req, res) => {
     res.json({ message: 'Login successful', token });
 };
 
+exports.getSupervisorData = async (req, res) => {
+    try {
+        const supervisorId = req.user.id;
+
+        const supervisor = await Supervisor.findById(supervisorId).populate('hospital');
+
+        if (!supervisor) {
+            return res.status(404).json({ message: "Supervisor not found" });
+        }
+
+        res.status(200).json(supervisor);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
 
 exports.createUser = async (req, res) => {
     const { fname, phone, password, iin } = req.body;
@@ -45,11 +61,27 @@ exports.createDoctor = async (req, res) => {
 };
 
 exports.createSupervisor = async (req, res) => {
-    const { name, password } = req.body;
-    const hashedPassword = bcrypt.hashSync(password, 10);
-    const supervisor = new Supervisor({ name, password: hashedPassword });
-    await supervisor.save();
-    res.status(201).json({ message: 'Supervisor created' });
+    try {
+        const { name, password, hospitalId } = req.body;
+
+        // Проверяем, существует ли больница
+        const hospital = await Hospital.findById(hospitalId);
+        if (!hospital) {
+            return res.status(404).json({ message: "Hospital not found" });
+        }
+
+        // Хешируем пароль
+        const hashedPassword = bcrypt.hashSync(password, 10);
+
+        // Создаем супервизора и привязываем к больнице
+        const supervisor = new Supervisor({ name, password: hashedPassword, hospital: hospitalId });
+        await supervisor.save();
+
+        res.status(201).json({ message: "Supervisor created successfully", supervisor });
+    } catch (error) {
+        console.error("Error creating supervisor:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
 };
 
 exports.createHospital = async (req, res) => {
@@ -88,61 +120,127 @@ exports.assignDoctorToHospital = async (req, res) => {
 };
 
 // 2️⃣ Прикрепление пациента к больнице
-exports.assignUserToHospital = async (req, res) => {
+exports.assignPatientToHospital = async (req, res) => {
     try {
         const { userId, hospitalId } = req.body;
 
+        // Найти больницу
         const hospital = await Hospital.findById(hospitalId);
         if (!hospital) {
             return res.status(404).json({ message: "Hospital not found" });
         }
 
-        const user = await User.findById(userId);
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
+        // Найти пациента
+        const patient = await User.findById(userId);
+        if (!patient) {
+            return res.status(404).json({ message: "Patient not found" });
         }
 
-        user.hospital.push(hospitalId);
-        hospital.patients.push(userId);
+        // Проверяем, не добавлен ли уже пациент в больницу
+        if (!hospital.patients.includes(userId)) {
+            hospital.patients.push(userId);
+        }
 
-        await user.save();
+        // Проверяем, не добавлена ли уже больница у пациента
+        if (!Array.isArray(patient.hospitals)) {
+            patient.hospitals = [];
+        }
+        if (!patient.hospitals.includes(hospitalId)) {
+            patient.hospitals.push(hospitalId);
+        }
+
+        // Сохраняем изменения
+        await patient.save();
         await hospital.save();
 
-        res.status(200).json({ message: "User assigned to hospital successfully" });
+        res.status(200).json({ message: "Patient assigned to hospital successfully" });
     } catch (error) {
-        console.error(error);
+        console.error("Error assigning patient to hospital:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 };
+
+
 
 exports.createAppointment = async (req, res) => {
     try {
         const { doctorId, userId, dateTime } = req.body;
 
+        // Проверяем существование врача
         const doctor = await Doctor.findById(doctorId);
         if (!doctor) {
             return res.status(404).json({ message: "Doctor not found" });
         }
 
+        // Проверяем существование пациента
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
 
-        // Форматируем дату в нужный формат
-        const formattedDateTime = moment(dateTime, "YYYY-MM-DD HH:mm").tz("Asia/Almaty").format("DD MMMM HH:mm");
+        // 🔹 Привязываем пациента к врачу (если его там ещё нет)
+        if (!doctor.users.includes(userId)) {
+            doctor.users.push(userId);
+        }
 
+        // 🔹 Привязываем врача к пациенту (если его там ещё нет)
+        if (!user.doctor.includes(doctorId)) {
+            user.doctor.push(doctorId);
+        }
+
+        // 🔹 Форматируем дату в правильный формат
+        const dateTimeISO = moment(dateTime, ["YYYY-MM-DD HH:mm", moment.ISO_8601], true).toDate();
+        const dateTimeFormatted = moment(dateTimeISO).tz("Asia/Almaty").format("DD MMMM HH:mm");
+
+        // Проверяем, что дата корректна
+        if (!moment(dateTimeISO).isValid()) {
+            return res.status(400).json({ message: "Invalid date format" });
+        }
+
+        // 🔹 Создаём новую запись на приём
         const appointment = new Appointment({
             doctor: doctorId,
             user: userId,
-            dateTime: formattedDateTime
+            dateTimeISO,
+            dateTimeFormatted
         });
 
+        // 🔹 Сохраняем изменения в базе
+        await user.save();
+        await doctor.save();
         await appointment.save();
 
         res.status(201).json({ message: "Appointment created successfully", appointment });
     } catch (error) {
-        console.error(error);
+        console.error("Error creating appointment:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+exports.getAppointmentsByHospital = async (req, res) => {
+    try {
+        const { hospitalId } = req.params;
+
+        // Находим больницу и её врачей
+        const hospital = await Hospital.findById(hospitalId).populate("doctors", "_id");
+        if (!hospital) {
+            return res.status(404).json({ message: "Hospital not found" });
+        }
+
+        // Получаем записи только для врачей этой больницы
+        const doctorIds = hospital.doctors.map(doc => doc._id);
+        const appointments = await Appointment.find({ doctor: { $in: doctorIds } })
+            .populate("user", "fname phone") // Заполняем данные пациента
+            .populate("doctor", "fname speciality") // Заполняем данные врача
+            .sort({ dateTime: 1 }); // Сортируем по дате
+
+        if (!appointments.length) {
+            return res.status(404).json({ message: "No appointments found for this hospital." });
+        }
+
+        res.status(200).json(appointments);
+    } catch (error) {
+        console.error("Error fetching appointments by hospital:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 };

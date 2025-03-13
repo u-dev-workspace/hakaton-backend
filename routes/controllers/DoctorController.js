@@ -27,7 +27,27 @@ exports.login = async (req, res) => {
 
 };
 
+exports.getPatientsByDoctor = async (req, res) => {
+    try {
+        const doctorId = req.user.id; // ID врача из токена
 
+        // Находим врача и загружаем список пациентов
+        const doctor = await Doctor.findById(doctorId).populate("users", "fname phone iin");
+
+        if (!doctor) {
+            return res.status(404).json({ message: "Doctor not found" });
+        }
+
+        if (!doctor.users || doctor.users.length === 0) {
+            return res.status(404).json({ message: "No patients found for this doctor." });
+        }
+
+        res.status(200).json(doctor.users);
+    } catch (error) {
+        console.error("Error fetching patients by doctor:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
 // Функция для преобразования времени из 12-часового формата в 24-часовой (09:00, 14:00, 21:00)
 const convertTo24HourFormat = (timeStr) => {
     return moment(timeStr, ["hA", "ha", "hhA", "h:mA", "h:ma", "hh:mA", "hh:ma"]).format("HH:mm");
@@ -59,8 +79,9 @@ exports.createRecipe = async (req, res) => {
         let createdUsingEvents = [];
 
         for (const receptionData of receptions) {
-            const { drug, day, timesPerDay } = receptionData;
+            const { drug, day, timesPerDay, usingDescription } = receptionData;
 
+            console.log(receptionData)
             if (timesPerDay < 1 || timesPerDay > 3) {
                 return res.status(400).json({ message: "Invalid timesPerDay value. Must be between 1 and 3." });
             }
@@ -69,6 +90,7 @@ exports.createRecipe = async (req, res) => {
                 drug,
                 day,
                 timesPerDay,
+                usingDescription,
                 user: existingUser._id,
                 doctor: existingDoctor._id,
                 startDay: moment().tz("Asia/Almaty").format("YYYY-MM-DD")
@@ -171,14 +193,113 @@ exports.getUpcomingAppointments = async (req, res) => {
             .populate('user', 'fname phone')
             .sort({ dateTime: 1 }); // Сортировка по дате (ближайшие первыми)
 
-        res.status(200).json({ appointments });
+        // 🔹 Добавляем форматированную дату в каждый объект
+        const formattedAppointments = appointments.map(appointment => ({
+            ...appointment._doc, // Оставляем оригинальные данные
+            formattedDateTime: moment(appointment.dateTime)
+                .tz("Asia/Almaty")
+                .format("DD MMMM YYYY, HH:mm") // Например: "21 марта 2025, 18:08"
+        }));
+
+        res.status(200).json({ appointments: formattedAppointments });
     } catch (error) {
-        console.error(error);
+        console.error("Ошибка получения записей:", error);
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.getDoctorProfile = async (req, res) => {
+    try {
+        // 🔹 Получаем `doctorId` из запроса (из параметра или токена)
+        const doctorId = req.user.id;
+
+        // 🔹 Находим врача и заполняем его связи
+        const doctor = await Doctor.findById(doctorId)
+            .populate("users", "fname lname phone iin") // Добавляем пациентов врача
+            .populate("hospital", "name address") // Добавляем больницу
+            .populate("recipe"); // Добавляем рецепты врача
+
+        if (!doctor) {
+            return res.status(404).json({ message: "Doctor not found" });
+        }
+
+        // 🔹 Получаем записи на приём к врачу
+        const appointments = await Appointment.find({ doctor: doctorId })
+            .populate("user", "fname lname phone") // Заполняем данные пациента
+            .sort({ dateTimeISO: 1 }); // Сортируем по дате
+
+        // 🔹 Формируем ответ
+        const doctorProfile = {
+            _id: doctor._id,
+            fname: doctor.fname,
+            lname: doctor.lname,
+            phone: doctor.phone,
+            speciality: doctor.speciality,
+            hospital: doctor.hospital || null,
+            users: doctor.users || [],
+            appointments: appointments || [],
+            recipes: doctor.recipe || [],
+        };
+
+        res.status(200).json(doctorProfile);
+    } catch (error) {
+        console.error("Ошибка при получении данных о враче:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 };
 
+const calculateScore = async (userId) => {
+    const events = await UsingEvent.find({ user: userId });
+    const recipes = await Recipe.find({ user: userId });
 
+    const totalEvents = events.length;
+    const missedEvents = events.filter(e => e.missedCount > 0).length;
+    const activeRecipes = recipes.filter(r => r.reception.length > 0).length;
+    const completedRecipes = recipes.length - activeRecipes;
+
+    if (totalEvents === 0) return 0; // Если нет приемов, рейтинг 0
+
+    // Формула для оценки (чем меньше пропусков, тем выше рейтинг)
+    let score = 10 - (missedEvents / totalEvents) * 10;
+    score += (activeRecipes * 1) - (completedRecipes * 0.5);
+    return Math.max(0, Math.min(10, score)); // Ограничиваем 0-10
+};
+
+exports.getDoctorAnalitics = async (req, res) => {
+    try {
+        const doctorId = req.user.id;
+        const doctor = await Doctor.findById(doctorId).populate('users');
+        if (!doctor) return res.status(404).json({ error: 'Доктор не найден' });
+
+        const statistics = await Promise.all(doctor.users.map(async (user) => {
+            const score = await calculateScore(user._id);
+            return { userId: user._id, name: user.fname, score };
+        }));
+
+        res.json(statistics);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.getDoctorData = async (req, res) => {
+    try {
+        const doctorId = req.user.id;
+        const doctor = await Doctor.findById(doctorId).populate('users hospitals recipe');
+        if (!doctor) return res.status(404).json({ error: 'Доктор не найден' });
+
+        res.json({
+            doctorId: doctor._id,
+            name: doctor.fname,
+            phone: doctor.phone,
+            speciality: doctor.speciality,
+            hospitals: doctor.hospitals.map(hospital => ({ id: hospital._id, name: hospital.name })),
+            patients: doctor.users.map(user => ({ id: user._id, name: user.fname })),
+            recipes: doctor.recipe.map(recipe => ({ id: recipe._id, disease: recipe.disease }))
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
 
 // 2️⃣ Получение всех записей пациента с данными о врачах, отсортированных по дате
 

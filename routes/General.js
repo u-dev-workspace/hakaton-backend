@@ -16,4 +16,8 @@ router.get('/general/getAllUsers', GeneralController.getAllUsers);
 router.get('/general/getAllHospitals', GeneralController.getAllHospitals);
 router.get('/general/getAllAppointments', GeneralController.getAllAppointments);
 
+router.get('/general/doctors/:hospitalId', GeneralController.getDoctorsByHospital);
+router.get('/general/users/:hospitalId', GeneralController.getUsersByHospital);
+router.get('/general/hospital/:hospitalId', GeneralController.getHospitalWithDetails);
+
 module.exports = router;

@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const { User, Reception, Doctor, UsingEvent, Appointment} = require("../../models/models");
+const { User, Reception, Doctor, UsingEvent, Appointment, Recipe} = require("../../models/models");
 require('dotenv').config();
 
 const moment = require('moment-timezone');
@@ -69,7 +69,7 @@ exports.createUsingEvent = async (req, res) => {
 
 exports.getUserRecipes = async (req, res) => {
     try {
-        const userId = req.user.id; // Получаем ID пользователя из JWT
+        const userId = req.user.id;
 
         const user = await User.findById(userId).populate({
             path: 'recipe',
@@ -422,6 +422,53 @@ exports.getUsingEventsForToday = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: "Internal server error" });
+    }
+};
+const calculateScore = async (userId) => {
+    const events = await UsingEvent.find({ user: userId });
+    const recipes = await Recipe.find({ user: userId });
+
+    const totalEvents = events.length;
+    const missedEvents = events.filter(e => e.missedCount > 0).length;
+    const activeRecipes = recipes.filter(r => r.reception.length > 0).length;
+    const completedRecipes = recipes.length - activeRecipes;
+
+    if (totalEvents === 0) return 0; // Если нет приемов, рейтинг 0
+
+    // Формула для оценки (чем меньше пропусков, тем выше рейтинг)
+    let score = 10 - (missedEvents / totalEvents) * 10;
+    // score += (activeRecipes * 1) - (completedRecipes * 5);
+    return score; // Ограничиваем 0-10
+};
+
+exports.getUserAnalitics = async (req, res) => {
+    try {
+        const userId = req.params.userId;
+        const user = await User.findById(userId).populate('recipe doctor hospital');
+        if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
+
+        const score = await calculateScore(userId);
+        const totalRecipes = await Recipe.countDocuments({ user: userId });
+        const activeRecipes = await Recipe.countDocuments({ user: userId, reception: { $exists: true, $ne: [] } });
+        const completedRecipes = totalRecipes - activeRecipes;
+        const totalEvents = await UsingEvent.countDocuments({ user: userId });
+        const missedEvents = await UsingEvent.countDocuments({ user: userId, missedCount: { $gt: 0 } });
+
+        res.json({
+            userId: user._id,
+            name: user.fname,
+            score,
+            totalRecipes,
+            activeRecipes,
+            completedRecipes,
+            totalEvents,
+            missedEvents,
+            doctors: user.doctor.map(doc => ({ name: doc.fname, speciality: doc.speciality, phone: doc.phone })),
+            hospitals: user.hospital.map(hosp => ({ name: hosp.name, address: hosp.address })),
+            recipes: user.recipe.map(recipe => ({ disease: recipe.disease, description: recipe.diseaseDescription, comment: recipe.tryComment }))
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
 };
 

@@ -14,6 +14,7 @@ const session = require("express-session");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+
 app.use(cookieParser()); // Подключаем поддержку работы с куками
 app.use(express.json()); // Позволяет работать с JSON в запросах
 app.use(express.urlencoded({ extended: true })); // Позволяет работать с форм-данными
