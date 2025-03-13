@@ -49,7 +49,7 @@ mongoose.connect(process.env.MONGO_URI, {
 
 // ✅ Подключаем парсинг JSON и cookies (ВАЖНО ДО session)
 app.use((req, res, next) => {
-    res.header("Access-Control-Allow-Origin", "http://localhost:3001"); // No '*'
+    res.header("Access-Control-Allow-Origin", process.env.ALLOWED_HOST); // No '*'
     res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
     res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
     res.header("Access-Control-Allow-Credentials", "true");
