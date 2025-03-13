@@ -20,7 +20,7 @@ app.use(express.urlencoded({ extended: true })); // Позволяет рабо�
 
 // ✅ Настроенный CORS (ВАЖНО ДО session и routes)
 app.use(cors({
-    origin: "*", // 🔥 Должен быть точный URL фронта
+    origin: process.env.ALLOWED_HOST, // 🔥 Должен быть точный URL фронта
     credentials: true, // 🔥 ОБЯЗАТЕЛЬНО для передачи куки
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization", "Access-Control-Allow-Credentials"],
@@ -48,7 +48,13 @@ mongoose.connect(process.env.MONGO_URI, {
     .catch(err => console.error('MongoDB connection error:', err));
 
 // ✅ Подключаем парсинг JSON и cookies (ВАЖНО ДО session)
-
+app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "http://localhost:3001"); // No '*'
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.header("Access-Control-Allow-Credentials", "true");
+    next();
+});
 
 app.use('/api', authRoutes, doctorRoutes, userRoutes, adminRoutes, genRoutes, searchRoutes);
 
