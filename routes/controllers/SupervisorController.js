@@ -96,28 +96,38 @@ exports.assignDoctorToHospital = async (req, res) => {
     try {
         const { userId, hospitalId } = req.body;
 
+        // Проверяем существование больницы
         const hospital = await Hospital.findById(hospitalId);
         if (!hospital) {
             return res.status(404).json({ message: "Hospital not found" });
         }
 
+        // Проверяем существование врача
         const doctor = await Doctor.findById(userId);
         if (!doctor) {
             return res.status(404).json({ message: "Doctor not found" });
         }
 
-        doctor.hospital = hospitalId;
-        hospital.doctors.push(userId);
+        // Добавляем врача в больницу (избегаем дублирования)
+        if (!hospital.doctors.includes(userId)) {
+            hospital.doctors.push(userId);
+        }
+
+        // Добавляем больницу в массив hospitals у врача (если ее там еще нет)
+        if (!doctor.hospitals.includes(hospitalId)) {
+            doctor.hospitals.push(hospitalId);
+        }
 
         await doctor.save();
         await hospital.save();
 
         res.status(200).json({ message: "Doctor assigned to hospital successfully" });
     } catch (error) {
-        console.error(error);
+        console.error("Error assigning doctor to hospital:", error);
         res.status(500).json({ message: "Internal server error" });
     }
 };
+
 
 // 2️⃣ Прикрепление пациента к больнице
 exports.assignPatientToHospital = async (req, res) => {
