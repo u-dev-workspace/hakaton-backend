@@ -444,7 +444,19 @@ const calculateScore = async (userId) => {
 exports.getUserAnalitics = async (req, res) => {
     try {
         const userId = req.params.userId;
-        const user = await User.findById(userId).populate('recipe doctor hospital');
+        const user = await User.findById(userId)
+            .populate({
+                path: 'recipe',
+                populate: {
+                    path: 'reception',
+                    populate: {
+                        path: 'doctor',
+                        select: 'fname speciality phone' // Загружаем информацию о враче
+                    }
+                }
+            })
+            .populate('doctor hospital');
+
         if (!user) return res.status(404).json({ error: 'Пользователь не найден' });
 
         const score = await calculateScore(userId);
@@ -463,9 +475,30 @@ exports.getUserAnalitics = async (req, res) => {
             completedRecipes,
             totalEvents,
             missedEvents,
-            doctors: user.doctor.map(doc => ({ name: doc.fname, speciality: doc.speciality, phone: doc.phone })),
-            hospitals: user.hospital.map(hosp => ({ name: hosp.name, address: hosp.address })),
-            recipes: user.recipe.map(recipe => ({ disease: recipe.disease, description: recipe.diseaseDescription, comment: recipe.tryComment }))
+            doctors: user.doctor.map(doc => ({
+                name: doc.fname,
+                speciality: doc.speciality,
+                phone: doc.phone
+            })),
+            hospitals: user.hospital.map(hosp => ({
+                name: hosp.name,
+                address: hosp.address
+            })),
+            recipes: user.recipe.map(recipe => ({
+                disease: recipe.disease,
+                description: recipe.diseaseDescription,
+                comment: recipe.tryComment,
+                medications: recipe.reception.map(reception => ({
+                    drug: reception.drug,
+                    timesPerDay: reception.timesPerDay,
+                    dayDuration: reception.day,
+                    prescribedBy: {
+                        doctorName: reception.doctor?.fname || "Не указан",
+                        doctorSpeciality: reception.doctor?.speciality || "Не указана",
+                        doctorPhone: reception.doctor?.phone || "Не указан"
+                    }
+                }))
+            }))
         });
     } catch (error) {
         res.status(500).json({ error: error.message });
